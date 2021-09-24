@@ -123,9 +123,19 @@ def fetch_priority_region_data(ahp):
     sfr_regions = np.concatenate((sfr0_pix.flatten(), sfr1_pix.flatten()))
 
     for sfr in SFR_list[2:]:
-        sfr0_pix = calc_hp_pixels_for_region(sfr['l'], sfr['b'], 3.5, 3.5, 20, ahp)
-        sfr_regions = np.concatenate((sfr_regions, sfr1_pix.flatten()))
+        sfr2_pix = calc_hp_pixels_for_region(sfr['l'], sfr['b'], 3.5, 3.5, 20, ahp)
+        sfr_regions = np.concatenate((sfr_regions, sfr2_pix.flatten()))
 
+    # Galactic pencilbeam regions:
+    filterset_pencilbeams = { 'u': 0.1, 'g': 0.2, 'r': 0.2, 'i': 0.2, 'z': 0.2, 'y': 0.1 }
+    pencilbeams_list = load_optimized_pencilbeams()
+    for i,beam in enumerate(pencilbeams_list):
+        pix = calc_hp_pixels_for_region(beam['l'], beam['b'], 3.5, 3.5, 20, ahp)
+        if i == 0:
+            pencilbeams = pix.flatten()
+        else:
+            pencilbeams = np.concatenate( (pencilbeams, pix.flatten()) )
+    
     # Dictionaries combining the data for the region HEALpix specifications.
     # Note: Bonito regions removed from these lists after consultation with
     # authors of the White Paper, which refers to a more specialised strategy
@@ -139,14 +149,17 @@ def fetch_priority_region_data(ahp):
                              'Galactic_Bulge': {'pixel_region': bulge_pix, 'filterset': filterset_bulge},
                              'Clementini_regions': {'pixel_region': Clementini_regions, 'filterset': filterset_Clementini},
                              'Globular_Clusters': {'pixel_region': gc_regions, 'filterset': filterset_gc},
-                             'SFR': {'pixel_region': sfr_regions, 'filterset': filterset_sfr} }
+                             'SFR': {'pixel_region': sfr_regions, 'filterset': filterset_sfr},
+                             'Pencilbeam_regions': {'pixel_region': pencilbeams, 'filterset': filterset_pencilbeams},
     #                         'Bonito_regions': Bonito_regions}
+                            }
     regions_outside_plane = {'LMC': {'pixel_region': LMC_pix, 'filterset': filterset_LMC},
                              'SMC': {'pixel_region': SMC_pix, 'filterset': filterset_SMC},
                              'Clementini': {'pixel_region': Clementini_regions, 'filterset': filterset_Clementini},
     #                         'Bonito': {'pixel_region': Bonito_regions, 'filterset': filterset_Bonito},
                              'Globular_Clusters': {'pixel_region': gc_regions, 'filterset': filterset_gc},
                              'SFR': {'pixel_region': sfr_regions, 'filterset': filterset_sfr},
+                             'Pencilbeam_regions': {'pixel_region': pencilbeams, 'filterset': filterset_pencilbeams},
                              }
 
     return high_priority_regions, regions_outside_plane
@@ -184,6 +197,31 @@ def load_SFR():
             SFR_list.append(sfr)
 
     return SFR_list
+
+def load_optimized_pencilbeams():
+    pencilbeams_list = [
+            {'name': 1, 'l': 280.0, 'b': 0.0},
+            {'name': 2, 'l': 287.280701754386, 'b': 0.0},
+            {'name': 2, 'l': 295.39473684210526, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 306.42543859649123, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 306.2061403508772, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 320.1535087719298, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 324.51754385964915, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 341.38157894736844, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 351.57894736842104, 'b':  -2.5},
+            {'name': 2, 'l': 0.10964912280701888, 'b':  -2.083333333333333},
+            {'name': 2, 'l': 0.3070175438596484, 'b':  -2.083333333333333},
+            {'name': 2, 'l': 8.421052631578945, 'b':  -3.333333333333333},
+            {'name': 2, 'l': 17.36842105263159, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 26.31578947368422, 'b':  -2.9166666666666665},
+            {'name': 2, 'l': 44.01315789473685, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 44.21052631578948, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 54.40789473684211, 'b':  0.0},
+            {'name': 2, 'l': 66.27192982456141, 'b':  -0.4166666666666661},
+            {'name': 2, 'l': 71.8859649122807, 'b':  0.0},
+            {'name': 2, 'l': 80.0, 'b':  -5.0} ]
+    
+    return pencilbeams_list
 
 def calc_hp_pixels_for_region(l_center, b_center, l_width, b_height, n_points, ahp):
 

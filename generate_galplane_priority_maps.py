@@ -36,7 +36,9 @@ def create_star_density_map():
 
     star_density_map = load_star_density_data(limiting_mag=24.7)
     hp_star_density = rotateHealpix(star_density_map)
-    hp_log_star_density = np.log10(hp_star_density)
+    hp_log_star_density = np.zeros(len(hp_star_density))
+    idx = hp_star_density > 0.0
+    hp_log_star_density[idx] = np.log10(hp_star_density[idx])
 
     ahp = HEALPix(nside=NSIDE, order='ring', frame=TETE())
 
@@ -138,12 +140,17 @@ def build_priority_map(high_priority_regions, regions_outside_plane,
     # Now we add the votes for HEALpix in regions of special scientific interest
     # for each filter
     for name, region in regions_outside_plane.items():
+        if 'Pencilbeam' in name:
+            field_weight = 10.0
+        else:
+            field_weight = 1.0
+            
         for f, filter_weight in region['filterset'].items():
-            vote_maps[f][region['pixel_region']] += filter_weight * 1.0
-
+            vote_maps[f][region['pixel_region']] += filter_weight * field_weight
+            
     # Output the priority maps in both PNG and FITS formats
     for f in filterset_gp.keys():
-        current_max = vote_maps[f].max()*1.0
+        #current_max = vote_maps[f].max()*1.0
         #norm = vote_maps[f].max()
         #vote_maps[f] = vote_maps[f]/norm
         fig = plt.figure(3,(10,10))
