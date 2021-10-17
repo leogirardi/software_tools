@@ -223,4 +223,9 @@ if __name__ == '__main__':
     (total_time_visible,hrs_per_night) = calculate_lsst_field_visibility(fieldRA,fieldDec,
                                                          start_date,end_date,
                                                          diagnostics=True)
-    
+    hrs_per_night = np.array(hrs_per_night)
+    print('Total time field is visible from Rubin Obs during these dates: '+repr(total_time_visible))
+    print('Hours of visibility per night:')
+    print(hrs_per_night)
+    print('Median hours per night: '+str(np.median(hrs_per_night)))
+    print('Total hours observable within window: '+str(hrs_per_night.sum()))
