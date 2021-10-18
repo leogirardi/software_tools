@@ -15,17 +15,16 @@ class calcVisitIntervalMetric(BaseMetric):
     def __init__(self, cols=['observationStartMJD',],
                        metricName='calcVisitIntervalMetric',
                        **kwargs):
-
+        """tau_obs is an array of minimum-required observation intervals for four categories
+        of time variability"""
+        
         self.mjdCol = 'observationStartMJD'
+        self.tau_obs = np.array([2.0, 20.0, 73.0, 365.0])
 
         super(calcVisitIntervalMetric,self).__init__(col=cols, metricName=metricName)
 
 
     def run(self, dataSlice, slicePoint=None):
-        
-        # Array of minimum-required observation intervals for four categories
-        # of time variability
-        tau_obs = np.array([2.0, 20.0, 73.0, 365.0])
         
         # Calculate the median time interval from the observation 
         # sequence in the dataSlice
@@ -33,13 +32,14 @@ class calcVisitIntervalMetric(BaseMetric):
         
         # Decay constant for metric value relationship as a function of 
         # observation interval
-        K = 1.0/tau_obs
+        K = 1.0/self.tau_obs
 
-        metric = 0.0
-        idx = np.where(delta_t <= tau_obs)[0]
-        if delta_t <= tau_obs:
-            metric = 1.0
-        else:
-            metric = np.exp(-K*(delta_t - tau_obs))
+        metric_values = [0.0]*len(self.tau_obs)
+        for i,tau in enumerate(self.tau_obs):
+            idx = np.where(delta_t <= tau)[0]
+            if delta_t <= tau:
+                metric_values[i] = 1.0
+            else:
+                metric_values[i] = np.exp(-K*(delta_t - tau))
         
-        return metric
+        return metric_values
