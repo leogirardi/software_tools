@@ -11,7 +11,8 @@ import csv
 # Configuration
 OUTPUT_DIR = './footprint_maps'
 NSIDE = 64
-open_clusters_data_file = './Kharchenko_catalog_OCs.dat'
+#open_clusters_data_file = './Kharchenko_catalog_OCs.dat'
+open_clusters_data_file = './Kharchenko_selected.csv'
 globular_clusters_data_file = './baumgardt_harris_GCs.csv'
 
 class CelestialRegion:
@@ -46,7 +47,6 @@ class CelestialRegion:
         coords = SkyCoord(LL, BB, frame=Galactic())
 
         self.pixels = ahp.skycoord_to_healpix(coords)
-
 
 def generate_map():
     """Function to plot given pixel positions on a HEALpix map"""
@@ -112,20 +112,44 @@ def load_open_cluster_data():
 
     regions = []
     if path.isfile(open_clusters_data_file):
-        file_lines = open(open_clusters_data_file,'r').readlines()
-        for line in file_lines[1:]:
-            entries = line.replace('\n','').split()
-            params = {'l_center': float(entries[5]), 'b_center': float(entries[6]),
-                        'l_width': float(entries[9])*2.0, 'b_height': float(entries[9])*2.0}
-            print(params)
-            r = CelestialRegion(params)
-            regions.append(r)
+        if '.dat' in open_clusters_data_file:
+            file_lines = open(open_clusters_data_file,'r').readlines()
+            for line in file_lines[1:]:
+                entries = line.replace('\n','').split()
+                params = {'l_center': float(entries[5]), 'b_center': float(entries[6]),
+                            'l_width': float(entries[9])*2.0, 'b_height': float(entries[9])*2.0}
+                r = CelestialRegion(params)
+                regions.append(r)
+
+        elif '.csv' in open_clusters_data_file:
+            with open(open_clusters_data_file, newline='') as csvfile:
+                reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+                for i,row in enumerate(reader):
+                    if i >= 1:
+                        line = scan_for_quotes(row[0])
+                        entries = line.split(',')
+                        try:
+                            params = {'l_center': float(entries[6]), 'b_center': float(entries[7]),
+                                        'l_width': float(entries[10])*2.0, 'b_height': float(entries[10])*2.0}
+                            r = CelestialRegion(params)
+                            regions.append(r)
+                        except ValueError:
+                            pass
         print('Loaded data on Open Clusters')
 
     else:
         raise IOError('Cannot find data file for Open Clusters at '+open_clusters_data_file)
 
     return regions
+
+def scan_for_quotes(line):
+    if '"' in line:
+        i0 = line.index('"')
+        i1 = line[i0+1:].index('"')
+        new_line = line[0:i0]+line[i0:i1].replace(',','_')+line[i1:]
+    else:
+        new_line = line
+    return new_line
 
 def load_globular_cluster_data():
 
