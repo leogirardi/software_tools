@@ -31,7 +31,9 @@ class CelestialRegion:
 
     def calc_healpixels_for_region(self,ahp):
         n_points = 500
-        halfwidth_l = self.l_width / 2.0
+        cosfactor = np.cos(self.b_center*3.141592/180.0)
+        cosfactor2 = cosfactor*cosfactor
+        halfwidth_l = (self.l_width / 2.0) / cosfactor
         halfheight_b = self.b_height / 2.0
 
         l_min = max( (self.l_center-halfwidth_l), 0 )
@@ -43,9 +45,12 @@ class CelestialRegion:
         b = np.linspace(b_min, b_max, n_points) * u.deg
 
         LL,BB = np.meshgrid(l, b)
-
-        coords = SkyCoord(LL, BB, frame=Galactic())
-
+        pointsincircle = np.where(np.sqrt(
+            (LL.value-self.l_center)*(LL.value-self.l_center)/cosfactor2 +
+            (BB.value-self.b_center)*(BB.value-self.b_center)
+            ) <= halfheight_b)
+        #coords = SkyCoord(LL, BB, frame=Galactic())
+        coords = SkyCoord(LL[pointsincircle], BB[pointsincircle], frame=Galactic())
         self.pixels = ahp.skycoord_to_healpix(coords)
 
 def generate_map():
@@ -90,7 +95,7 @@ def output_sky_map(map,options):
     fig = plt.figure(3,(10,10))
     hp.mollview(map, title=title)
     hp.graticule()
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.savefig(path.join(OUTPUT_DIR,file_name+'.png'))
     plt.close(3)
 
@@ -148,7 +153,7 @@ def scan_for_quotes(line):
         i1 = line[i0+1:].index('"')
         new_line = line[0:i0]+line[i0:i1].replace(',','_')+line[i1:]
     else:
-        new_line = line
+        new_line = line 
     return new_line
 
 def load_globular_cluster_data():
@@ -161,9 +166,20 @@ def load_globular_cluster_data():
                 if i >= 1:
                     entries = row[0].split(',')
                     try:
-                        # Assumes that the cluster raduis information is in arcmin?
+                        # What's the cluster radius we want to sample? Here we set it to 1.5*half-light radius
+                        # The half-light radius is r_hl(pc) / R_sun(kpc) converted to deg
+                        radius = 1.5*(0.001*float(entries[16])/float(entries[5]))*(180.0/3.141692)
+                        # Another alternative: use the tidal radius r_t = r_c^c (with max at 30 arcmin, minimum at 2)
+                        radius = float(entries[74])*np.power(10.0,float(entries[72])) / 60.0
+                        if (radius>0.5): radius = 0.5
+                        if (radius<2.0/60.0): radius = 2.0/60.0
+                        
                         params = {'l_center': float(entries[3]), 'b_center': float(entries[4]),
-                                    'l_width': float(entries[16])*2.0/60.0, 'b_height': float(entries[16])*2.0/60.0}
+                                  'l_width': 2.0*radius, 'b_height': 2.0*radius}
+                        # Another alternative: use r_t = r_c^c (with max at 30 arcmin, 5 arcmin if unknown)
+                        params = {'l_center': float(entries[3]), 'b_center': float(entries[4]),
+                                  'l_width': float(entries[74])*np.power(10.0,float(entries[74])),
+                                  'b_height': 1.5*(0.001*float(entries[16])/float(entries[5]))*2.0*(180.0/3.141692)}
                         r = CelestialRegion(params)
                         regions.append(r)
                     except ValueError:

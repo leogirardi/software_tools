@@ -9,7 +9,8 @@ import science_priority_regions
 
 # Configuration
 STAR_MAP_DIR = './star_density_maps'
-STAR_MAP_FILE = 'TRIstarDensity_r_nside_64.npz'
+#leo changed to extended area: STAR_MAP_FILE = 'TRIstarDensity_r_nside_64.npz'
+STAR_MAP_FILE = 'TRIstarDensity_r_nside_64_ext.npz'
 OUTPUT_DIR = './footprint_maps'
 # Note if NSIDE is changed, a corresponding map of star density data must be used
 NSIDE = 64

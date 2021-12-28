@@ -11,6 +11,7 @@ import numpy as np
 from astropy import units as u
 from astropy.coordinates import Galactic, TETE, SkyCoord
 import gc_all_lsst_field
+import oc_all_lsst_field
 
 def fetch_priority_region_data(ahp):
     """Function returns the specified HEALpix regions and filter preferences
@@ -103,7 +104,7 @@ def fetch_priority_region_data(ahp):
     Bonito_regions = np.concatenate((EtaCarina_pix.flatten(), OrionNebula_pix.flatten()))
     for cluster in [NGC2264_pix, NGC6530_pix, NGC6611_pix]:
         Bonito_regions = np.concatenate((Bonito_regions, cluster.flatten()))
-
+    
     # Globular clusters
     # ee module gc_all_lsst_field.py
     filterset_gc = { 'u': 0.0, 'g': 0.2, 'r': 0.3, 'i': 0.3, 'z': 0.2, 'y': 0.0 }
@@ -115,6 +116,17 @@ def fetch_priority_region_data(ahp):
         cluster0_pix = calc_hp_pixels_for_region(cluster['l'], cluster['b'], 3.5, 3.5, 20, ahp)
         gc_regions = np.concatenate((gc_regions, cluster0_pix.flatten()))
 
+    ##### ADDING open clusters:
+    # ee module oc_all_lsst_field.py
+    filterset_oc = { 'u': 0.0, 'g': 0.2, 'r': 0.3, 'i': 0.3, 'z': 0.2, 'y': 0.0 }
+    oc_list = oc_all_lsst_field.fetch_OpenClusters_in_LSST_footprint()
+    cluster0_pix = calc_hp_pixels_for_roundregion(oc_list[0]['l'], oc_list[0]['b'], oc_list[0]['rad'], 20, ahp)
+    cluster1_pix = calc_hp_pixels_for_roundregion(oc_list[1]['l'], oc_list[1]['b'], oc_list[1]['rad'], 20, ahp)
+    oc_regions = np.concatenate((cluster0_pix.flatten(), cluster1_pix.flatten()))
+    for cluster in oc_list[2:]:
+        cluster0_pix = calc_hp_pixels_for_roundregion(cluster['l'], cluster['b'], cluster['rad'], 20, ahp)
+        oc_regions = np.concatenate((oc_regions, cluster0_pix.flatten()))
+    
     # Star Forming Regions:
     filterset_sfr = { 'u': 0.1, 'g': 0.1, 'r': 0.1, 'i': 0.1, 'z': 0.1, 'y': 0.1 }
     SFR_list = load_SFR()
@@ -139,16 +151,20 @@ def fetch_priority_region_data(ahp):
     # Dictionaries combining the data for the region HEALpix specifications.
     # Note: Bonito regions removed from these lists after consultation with
     # authors of the White Paper, which refers to a more specialised strategy
+    #
+    # NOTE: open clusters included here but pending consultation with all interested parties!!!
+    #
     high_priority_regions = {'Galactic_Plane': {'pixel_region': gp_region_pix, 'filterset': filterset_gp},
                              'Gonzalez_Plane_region': {'pixel_region': Gonzalez_gp_pix, 'filterset': filterset_Gonzalez_gp},
                              'Bonito_Plane_region': {'pixel_region': Bonito_gp_pix, 'filterset': filterset_Bonito_gp},
                              'Bono_shallow_survey': {'pixel_region': Bono_shallow_pix, 'filterset': filterset_Bono_shallow},
                              'Bono_deep_survey': {'pixel_region': Bono_deep_pix, 'filterset': filterset_Bono_deep},
-                             'Large_Magellenic_Cloud': {'pixel_region': LMC_pix, 'filterset': filterset_LMC},
-                             'Small_Magellenic_Cloud': {'pixel_region': SMC_pix, 'filterset': filterset_SMC},
+                             'Large_Magellanic_Cloud': {'pixel_region': LMC_pix, 'filterset': filterset_LMC},
+                             'Small_Magellanic_Cloud': {'pixel_region': SMC_pix, 'filterset': filterset_SMC},
                              'Galactic_Bulge': {'pixel_region': bulge_pix, 'filterset': filterset_bulge},
                              'Clementini_regions': {'pixel_region': Clementini_regions, 'filterset': filterset_Clementini},
                              'Globular_Clusters': {'pixel_region': gc_regions, 'filterset': filterset_gc},
+                             'Open_Clusters': {'pixel_region': oc_regions, 'filterset': filterset_oc}, ##### WARNING, RECENTLY ADDED!!!!
                              'SFR': {'pixel_region': sfr_regions, 'filterset': filterset_sfr},
                              'Pencilbeam_regions': {'pixel_region': pencilbeams, 'filterset': filterset_pencilbeams},
     #                         'Bonito_regions': Bonito_regions}
@@ -158,6 +174,7 @@ def fetch_priority_region_data(ahp):
                              'Clementini': {'pixel_region': Clementini_regions, 'filterset': filterset_Clementini},
     #                         'Bonito': {'pixel_region': Bonito_regions, 'filterset': filterset_Bonito},
                              'Globular_Clusters': {'pixel_region': gc_regions, 'filterset': filterset_gc},
+                             'Open_Clusters': {'pixel_region': oc_regions, 'filterset': filterset_oc}, ##### WARNING, RECENTLY ADDED!!!!
                              'SFR': {'pixel_region': sfr_regions, 'filterset': filterset_sfr},
                              'Pencilbeam_regions': {'pixel_region': pencilbeams, 'filterset': filterset_pencilbeams},
                              }
@@ -239,6 +256,29 @@ def calc_hp_pixels_for_region(l_center, b_center, l_width, b_height, n_points, a
     LL,BB = np.meshgrid(l, b)
 
     coords = SkyCoord(LL, BB, frame=Galactic())
+
+    pixels = ahp.skycoord_to_healpix(coords)
+
+    return pixels
+
+def calc_hp_pixels_for_roundregion(l_center, b_center, radius, n_points, ahp):
+
+    cosb = np.cos(b_center*np.pi/180.0)
+    cosb2 = cosb*cosb
+    # note: this will now produce real circles very close to the poles and at l=360
+    l_min = max( (l_center-10*radius/cosb), 0 )
+    l_max = min( (l_center+10*radius/cosb), 360.0 )
+    b_min = max( (b_center-10*radius), -90.0 )
+    b_max = min( (b_center+10*radius), 90.0 )
+
+    l = np.linspace(l_min, l_max, n_points) * u.deg
+    b = np.linspace(b_min, b_max, n_points) * u.deg
+
+    LL,BB = np.meshgrid(l, b)
+    incircle = np.where( np.sqrt( (LL.value-l_center)*(LL.value-l_center)/cosb2 +
+                                  (BB.value-b_center)*(BB.value-b_center) ) < radius )
+
+    coords = SkyCoord(LL[incircle], BB[incircle], frame=Galactic())
 
     pixels = ahp.skycoord_to_healpix(coords)
 
